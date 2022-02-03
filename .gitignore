@@ -1,0 +1,6 @@
+.ssl
+.env
+.vscode
+rest
+bin
+vendor
