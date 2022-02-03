@@ -1,9 +1,10 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
-	"net/http"
 )
 
 type Remainder struct {
@@ -28,11 +29,10 @@ type (
 		validator *validator.Validate
 	}
 
-	MongoConfig struct {
-		Db       string
-		User     string
-		Password string
-		URI      string
+	Recipient struct {
+		Email          string
+		Role           string
+		SlugIdentifier string
 	}
 )
 
