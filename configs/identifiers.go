@@ -1,9 +1,9 @@
 package configs
 
 const (
-	TeacherRole  = ""
+	TeacherRole  = "/!01"
 	StudentRole  = "/!02"
-	PersonelRole = ""
+	PersonelRole = "/!03"
 	ParentRole   = "/!04"
 	Anonymous    = ""
 )
