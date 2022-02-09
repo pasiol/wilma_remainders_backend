@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -11,18 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"../configs"
-
 	"golang.org/x/crypto/bcrypt"
 )
-
-func hashAndSalt(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
-}
 
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
@@ -68,68 +58,40 @@ func connectOrFail(uri string, db string) (*mongo.Database, *mongo.Client, error
 	return DB, client, nil
 }
 
-func getRecipients(s string) []Recipient {
-	var recipients []Recipient
-	splittedRecipients := strings.Split(s, "#role#")
+func transformRemainder(r Remainder) ([]Remainder, error) {
 
-	for i, r := range splittedRecipients[1:] {
-		fields := strings.SplitN(r, "@", 2)
-		recipient := Recipient{}
-		if len(fields) == 2 {
-			if strings.Contains(r, "teacher") {
-				recipient = Recipient{
-					Email:          fields[1],
-					Role:           "teacher",
-					SlugIdentifier: strings.Replace(fields[0], "teacher", configs.TeacherRole, 1),
+	trasformed := []Remainder{}
+	//fmt.Printf("\n%v\n", r.To)
+	splitted := strings.Split(r.To, "#role#")
+	//fmt.Printf("\n%v\n", splitted)
+	for i, recipient := range splitted {
+		if recipient != "" {
+			fmt.Printf("\n%s\n", splitted[i])
+			recipientData := strings.SplitN(splitted[i], "@", 2)
+
+			if len(recipientData) == 2 {
+				role := recipientData[0]
+				slug := ""
+				if strings.Contains(role, "student") || strings.Contains(role, "parent") {
+					slug = strings.Replace(role, "student", "", -1)
+					slug = strings.Replace(slug, "parent", "", -1)
+					slug = slug + "/"
 				}
-				if configs.TeacherRole == "" {
-					recipient.SlugIdentifier = ""
+				email := recipientData[1]
+				r := Remainder{
+					To:      email,
+					Title:   r.Title,
+					Message: strings.Replace(r.Message, "#SLUG#/", slug, -1),
+					// TODO: types
+					UpdatedAt: r.UpdatedAt,
 				}
+				trasformed = append(trasformed, r)
+				r = Remainder{}
+			} else {
+				return []Remainder{}, errors.New("malformed recipient data")
 			}
-			if strings.Contains(r, "student") {
-				recipient = Recipient{
-					Email:          fields[1],
-					Role:           "student",
-					SlugIdentifier: strings.Replace(fields[0], "student", configs.StudentRole, 1),
-				}
-				if configs.StudentRole == "" {
-					recipient.SlugIdentifier = ""
-				}
-			}
-			if strings.Contains(r, "personel") {
-				recipient = Recipient{
-					Email:          fields[1],
-					Role:           "personel",
-					SlugIdentifier: strings.Replace(fields[0], "personel", configs.PersonelRole, 1),
-				}
-				if configs.PersonelRole == "" {
-					recipient.SlugIdentifier = ""
-				}
-			}
-			if strings.Contains(r, "parent") {
-				recipient = Recipient{
-					Email:          fields[1],
-					Role:           "parent",
-					SlugIdentifier: strings.Replace(fields[0], "parent", configs.ParentRole, 1),
-				}
-				if configs.ParentRole == "" {
-					recipient.SlugIdentifier = ""
-				}
-			}
-			if strings.Contains(r, "nowilma-account") {
-				recipient = Recipient{
-					Email:          fields[1],
-					Role:           "parent",
-					SlugIdentifier: strings.Replace(fields[0], "nowilma-account", configs.Anonymous, 1),
-				}
-				if configs.ParentRole == "" {
-					recipient.SlugIdentifier = ""
-				}
-			}
-			recipients = append(recipients, recipient)
-		} else {
-			log.Printf("Splittig recipient failed: %d, %s: %v", i, r, fields)
 		}
 	}
-	return recipients
+	//splitted = nil
+	return trasformed, nil
 }

@@ -38,7 +38,7 @@ func (a *App) postLogin(c echo.Context) error {
 	if a.Debug {
 		expirationTime = time.Minute * 10
 	}
-	if u.Login(a.Db) {
+	if u.login(a.Db) {
 
 		claims := &jwtCustomClaims{
 			u.Username,
@@ -61,7 +61,7 @@ func (a *App) postLogin(c echo.Context) error {
 }
 
 func (a *App) getLatest(c echo.Context) error {
-	remainders, err := findLatest(a.Db)
+	remainders, err := latest(a.Db)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

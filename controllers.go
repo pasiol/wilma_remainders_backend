@@ -2,39 +2,15 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"log"
-	"net/http"
 	"os"
+	"strings"
 	"time"
-
-	"github.com/labstack/echo/v4"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-func getCustomHTTPServer(e *echo.Echo) http.Server {
-	autoTLSManager := autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		// Cache certificates to avoid issues with rate limits (https://letsencrypt.org/docs/rate-limits)
-		Cache:      autocert.DirCache(os.Getenv("APP_CERT_CACHE_PATH")),
-		HostPolicy: autocert.HostWhitelist("APP_DOMAIN_NAME"),
-	}
-	return http.Server{
-		Addr:    ":443",
-		Handler: e, // set Echo as handler
-		TLSConfig: &tls.Config{
-			//Certificates: nil, // <-- s.ListenAndServeTLS will populate this field
-			GetCertificate: autoTLSManager.GetCertificate,
-			NextProtos:     []string{acme.ALPNProto},
-		},
-		ReadTimeout: 30 * time.Second, // use custom timeouts
-	}
-}
 
 func (a *App) getDbConnection() (*mongo.Database, *mongo.Client, error) {
 	uri, exists := os.LookupEnv("APP_DB_URI")
@@ -55,13 +31,13 @@ func (a *App) getDbConnection() (*mongo.Database, *mongo.Client, error) {
 	return db, client, err
 }
 
-func search(searchPhrase string, db *mongo.Database) ([]Remainder, error) {
+func search(filter string, db *mongo.Database) ([]Remainder, error) {
 	var remainders []Remainder
 	queryOptions := options.Find()
 	queryOptions.SetSort(bson.D{{"updated_at", -1}})
 	queryOptions.SetLimit(200)
 
-	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", searchPhrase}, {"$options", "im"}}}}, queryOptions)
+	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", filter}, {"$options", "im"}}}}, queryOptions)
 	if err != nil {
 		return []Remainder{}, err
 	}
@@ -76,13 +52,20 @@ func search(searchPhrase string, db *mongo.Database) ([]Remainder, error) {
 		if err = cursor.Decode(&currentRemainder); err != nil {
 			log.Printf("decoding remainder failed: err")
 		}
-
-		remainders = append(remainders, currentRemainder)
+		transformedRemainders, err := transformRemainder(currentRemainder)
+		if err != nil {
+			return []Remainder{}, err
+		}
+		for _, r := range transformedRemainders {
+			if strings.Contains(r.To, filter) {
+				remainders = append(remainders, r)
+			}
+		}
 	}
 	return remainders, nil
 }
 
-func find(db *mongo.Database) ([]Remainder, error) {
+func latest(db *mongo.Database) ([]Remainder, error) {
 	var remainders []Remainder
 
 	queryOptions := options.Find()
@@ -104,12 +87,16 @@ func find(db *mongo.Database) ([]Remainder, error) {
 		if err = cursor.Decode(&currentRemainder); err != nil {
 			log.Printf("decoding remainder failed: %s", err.Error())
 		}
-		remainders = append(remainders, currentRemainder)
+		transformedRemainders, err := transformRemainder(currentRemainder)
+		if err != nil {
+			return []Remainder{}, err
+		}
+		remainders = append(remainders, transformedRemainders...)
 	}
 	return remainders, nil
 }
 
-func (u *User) Login(db *mongo.Database) bool {
+func (u *User) login(db *mongo.Database) bool {
 	var user User
 	filter := bson.D{{"username", u.Username}, {"approved", true}}
 	queryOptions := options.FindOne()
