@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -48,7 +47,7 @@ func (a *App) postLogin(c echo.Context) error {
 			},
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+		t, err := token.SignedString(a.JWTConfig.SigningKey)
 		if err != nil {
 			return err
 		}
@@ -62,7 +61,7 @@ func (a *App) postLogin(c echo.Context) error {
 }
 
 func (a *App) getLatest(c echo.Context) error {
-	remainders, err := find(a.Db)
+	remainders, err := findLatest(a.Db)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

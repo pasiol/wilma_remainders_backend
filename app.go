@@ -22,6 +22,7 @@ type App struct {
 	Client    *mongo.Client
 	TLSConfig *tls.Config
 	Debug     bool
+	JWTConfig middleware.JWTConfig
 }
 
 func (a *App) Initialize() {
@@ -64,11 +65,11 @@ func (a *App) Initialize() {
 		a.API.Logger.Fatalf("generating JWT secret failed")
 	}
 	authorizedEndpoints := a.API.Group("/api/v1")
-	config := middleware.JWTConfig{
+	a.JWTConfig = middleware.JWTConfig{
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte(JWTSecret),
 	}
-	authorizedEndpoints.Use(middleware.JWTWithConfig(config))
+	authorizedEndpoints.Use(middleware.JWTWithConfig(a.JWTConfig))
 
 	route := authorizedEndpoints.GET("/latest", a.getLatest)
 	route.Name = "get-latest"
