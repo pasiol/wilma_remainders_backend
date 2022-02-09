@@ -4,3 +4,4 @@
 rest
 bin
 vendor
+*.log
