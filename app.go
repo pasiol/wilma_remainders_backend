@@ -23,18 +23,27 @@ type App struct {
 	TLSConfig *tls.Config
 	Debug     bool
 	JWTConfig middleware.JWTConfig
+	LogFile   *os.File
 }
 
 func (a *App) Initialize() {
+	var err error
 	a.API = echo.New()
+
+	a.LogFile, err = os.OpenFile("remainders-backend.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		panic(fmt.Sprintf("error opening file: %v", err))
+	}
+
 	// TODO: debug-timeout
 	a.API.Validator = &CustomValidator{validator: validator.New()}
-	a.API.Use(middleware.Logger())
+	a.API.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Output: a.LogFile}))
 	a.API.Use(middleware.Recover())
 	a.API.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		Timeout: 240 * time.Second,
 	}))
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Print("Reading environment failed.")
 	}
@@ -75,9 +84,11 @@ func (a *App) Initialize() {
 	route.Name = "get-latest"
 	route = authorizedEndpoints.GET("/search/:filter", a.getSearch)
 	route.Name = "get-search"
+	a.API.Logger.Info("service initialized succesfully")
 }
 
 func (a *App) Run() {
+	defer a.LogFile.Close()
 	if os.Getenv("APP_SSL_PUBLIC") != "" && os.Getenv("APP_SSL_PRIVATE") != "" {
 		a.API.Logger.Fatal(a.API.StartTLS(fmt.Sprintf(":%s", os.Getenv("APP_PORT")), os.Getenv("APP_SSL_PUBLIC"), os.Getenv("APP_SSL_PRIVATE")))
 	}
