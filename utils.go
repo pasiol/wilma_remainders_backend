@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -61,12 +60,9 @@ func connectOrFail(uri string, db string) (*mongo.Database, *mongo.Client, error
 func transformRemainder(r Remainder) ([]Remainder, error) {
 
 	trasformed := []Remainder{}
-	//fmt.Printf("\n%v\n", r.To)
 	splitted := strings.Split(r.To, "#role#")
-	//fmt.Printf("\n%v\n", splitted)
 	for i, recipient := range splitted {
 		if recipient != "" {
-			fmt.Printf("\n%s\n", splitted[i])
 			recipientData := strings.SplitN(splitted[i], "@", 2)
 
 			if len(recipientData) == 2 {
@@ -92,6 +88,5 @@ func transformRemainder(r Remainder) ([]Remainder, error) {
 			}
 		}
 	}
-	//splitted = nil
 	return trasformed, nil
 }
