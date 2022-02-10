@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
+	"github.com/pasiol/wilma_remainders_backend/configs"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -58,7 +60,11 @@ func connectOrFail(uri string, db string) (*mongo.Database, *mongo.Client, error
 }
 
 func transformRemainder(r Remainder) ([]Remainder, error) {
-
+	roleRegexp, err := regexp.Compile(`([a-z]+)`)
+	idRegexp, err := regexp.Compile(`([0-9]+)`)
+	if err != nil {
+		return []Remainder{}, nil
+	}
 	trasformed := []Remainder{}
 	splitted := strings.Split(r.To, "#role#")
 	for i, recipient := range splitted {
@@ -66,23 +72,21 @@ func transformRemainder(r Remainder) ([]Remainder, error) {
 			recipientData := strings.SplitN(splitted[i], "@", 2)
 
 			if len(recipientData) == 2 {
-				role := recipientData[0]
-				slug := ""
-				if strings.Contains(role, "student") || strings.Contains(role, "parent") {
-					slug = strings.Replace(role, "student", "", -1)
-					slug = strings.Replace(slug, "parent", "", -1)
-					slug = slug + "/"
+				role := string(roleRegexp.Find([]byte(recipientData[0])))
+				id := string(idRegexp.Find([]byte(recipientData[0])))
+				if slugRole, found := configs.Roles[role]; found {
+					email := recipientData[1]
+					slug := slugRole + id
+					r := Remainder{
+						To:      email,
+						Title:   r.Title,
+						Message: strings.Replace(r.Message, "#SLUG#", slug, -1),
+						// TODO: types
+						UpdatedAt: r.UpdatedAt,
+					}
+					trasformed = append(trasformed, r)
+					r = Remainder{}
 				}
-				email := recipientData[1]
-				r := Remainder{
-					To:      email,
-					Title:   r.Title,
-					Message: strings.Replace(r.Message, "#SLUG#/", slug, -1),
-					// TODO: types
-					UpdatedAt: r.UpdatedAt,
-				}
-				trasformed = append(trasformed, r)
-				r = Remainder{}
 			} else {
 				return []Remainder{}, errors.New("malformed recipient data")
 			}
