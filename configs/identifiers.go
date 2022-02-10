@@ -1,9 +1,9 @@
 package configs
 
-const (
-	TeacherRole  = "/!01"
-	StudentRole  = "/!02"
-	PersonelRole = "/!03"
-	ParentRole   = "/!04"
-	Anonymous    = ""
-)
+var Roles = map[string]string{
+	"teacher":   "!01",
+	"student":   "!02",
+	"personel":  "!03",
+	"parent":    "!04",
+	"anonymous": "",
+}
