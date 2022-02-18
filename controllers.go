@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -40,7 +41,7 @@ func search(filter string, db *mongo.Database) ([]Remainder, error) {
 	if err != nil {
 		return []Remainder{}, err
 	}
-	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", sanitizedFilter}, {"$options", "im"}}}}, queryOptions)
+	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", fmt.Sprintf("%s", sanitizedFilter)}, {"$options", "im"}}}}, queryOptions)
 	if err != nil {
 		return []Remainder{}, err
 	}
