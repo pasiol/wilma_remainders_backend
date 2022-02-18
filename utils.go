@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/pasiol/wilma_remainders_backend/configs"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -93,4 +94,22 @@ func transformRemainder(r Remainder) ([]Remainder, error) {
 		}
 	}
 	return trasformed, nil
+}
+
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsGraphic(r) {
+			return r
+		}
+		return -1
+	}, s)
+}
+
+func sanitizeSearch(s string) (string, error) {
+	searchRegexp, err := regexp.Compile(`[0-9A-Za-z.@-]+`)
+	if err != nil {
+		return "", err
+	}
+	sanitized := searchRegexp.Find([]byte(s))
+	return string(sanitized), nil
 }

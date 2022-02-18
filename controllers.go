@@ -36,8 +36,11 @@ func search(filter string, db *mongo.Database) ([]Remainder, error) {
 	queryOptions := options.Find()
 	queryOptions.SetSort(bson.D{{"updated_at", -1}})
 	queryOptions.SetLimit(200)
-
-	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", filter}, {"$options", "im"}}}}, queryOptions)
+	sanitizedFilter, err := sanitizeSearch(clean(filter))
+	if err != nil {
+		return []Remainder{}, err
+	}
+	cursor, err := db.Collection("sended").Find(context.TODO(), bson.D{{"to", bson.D{{"$regex", sanitizedFilter}, {"$options", "im"}}}}, queryOptions)
 	if err != nil {
 		return []Remainder{}, err
 	}
@@ -57,7 +60,7 @@ func search(filter string, db *mongo.Database) ([]Remainder, error) {
 			return []Remainder{}, err
 		}
 		for _, r := range transformedRemainders {
-			if strings.Contains(r.To, filter) {
+			if strings.Contains(r.To, sanitizedFilter) {
 				remainders = append(remainders, r)
 			}
 		}
